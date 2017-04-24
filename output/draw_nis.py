@@ -1,8 +1,12 @@
 import matplotlib.pyplot as plt
+import sys
+
+# Get the file name
+input_doc = sys.argv[1]
 
 nis_radar, nis_lidar = [], []
 
-with open("output.txt", "r") as f:
+with open(input_doc, "r") as f:
 	for line in f:
 		items = line.split()
 		if items[6] == "radar":

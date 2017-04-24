@@ -71,6 +71,11 @@ UKF::UKF() {
   // weights of sigma points
   weights_ = VectorXd(2*n_aug_+1);
     
+  // Set weights
+  double w = 0.5 / (lambda_ + n_aug_);
+  weights_.fill(w);
+  weights_(0) = lambda_ / (lambda_ + n_aug_);
+    
   // Laser noise covariance matrix
   R_laser_ = MatrixXd(2, 2);
   R_laser_ << std_laspx_*std_laspx_, 0,
@@ -231,20 +236,20 @@ void UKF::Prediction(double delta_t) {
   for (int i = 0; i < 2*n_aug_+1; i++) {
         
     // Extract values of sigma point for better readability
-    double px = Xsig_aug(0, i);
-    double py = Xsig_aug(1, i);
-    double v = Xsig_aug(2, i);
-    double yaw = Xsig_aug(3, i);
-    double yawd = Xsig_aug(4, i);
-    double nu_a = Xsig_aug(5, i);
-    double nu_yawdd = Xsig_aug(6, i);
+    const double px = Xsig_aug(0, i);
+    const double py = Xsig_aug(1, i);
+    const double v = Xsig_aug(2, i);
+    const double yaw = Xsig_aug(3, i);
+    const double yawd = Xsig_aug(4, i);
+    const double nu_a = Xsig_aug(5, i);
+    const double nu_yawdd = Xsig_aug(6, i);
         
     // Pre-compute to avoid repeated calculations
-    double delta_t_2 = delta_t * delta_t;
-    double sin_yaw = sin(yaw);
-    double cos_yaw = cos(yaw);
-    double noise_px = 0.5 * nu_a * cos_yaw * delta_t_2;
-    double noise_py = 0.5 * nu_a * sin_yaw * delta_t_2;
+    const double delta_t_2 = delta_t * delta_t;
+    const double sin_yaw = sin(yaw);
+    const double cos_yaw = cos(yaw);
+    const double noise_px = 0.5 * nu_a * cos_yaw * delta_t_2;
+    const double noise_py = 0.5 * nu_a * sin_yaw * delta_t_2;
         
     // Predict state vector and add noise
     // Avoid division by zero
@@ -266,11 +271,6 @@ void UKF::Prediction(double delta_t) {
   /*******************************************
     Calculate posterior state and covariance
   ********************************************/
-    
-  // Set weights
-  double w = 0.5 / (lambda_ + n_aug_);
-  weights_.fill(w);
-  weights_(0) = lambda_ / (lambda_ + n_aug_);
     
   // Calculate state mean
   x_.fill(0.0);
@@ -391,18 +391,26 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
   // Create measurement covariance matrix S
   MatrixXd S = MatrixXd(3, 3);
     
+  // Define a small value to avoid division by zero
+  const double eps = 0.0001;
+    
   // Transform sigma points into measurement space
   for (int i = 0; i < 2*n_aug_+1; i++) {
     // Create variables for better readability
-    double px = Xsig_pred_(0, i);
-    double py = Xsig_pred_(1, i);
-    double v = Xsig_pred_(2, i);
-    double yaw = Xsig_pred_(3, i);
+    const double px = Xsig_pred_(0, i);
+    const double py = Xsig_pred_(1, i);
+    const double v = Xsig_pred_(2, i);
+    const double yaw = Xsig_pred_(3, i);
         
     // Predict measurement
-    double radr = sqrt(px * px + py * py);
-    double radphi = atan2(py, px);
-    double radrd = (px * v * cos(yaw) + py * v * sin(yaw)) / (radr);
+    const double radr = sqrt(px * px + py * py);
+    double radphi;
+    if (fabs(px)>=eps && fabs(py)>=eps) {
+      radphi = atan2(py, px);
+    } else {
+      radphi = 0;
+    }
+    const double radrd = (px * v * cos(yaw) + py * v * sin(yaw)) / (std::max(eps, radr));
         
     // Set corresponding values of Zsig
     Zsig(0, i) = radr;
